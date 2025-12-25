@@ -25,11 +25,20 @@ class FuelBillProcessor:
     def load_config(self, config_path=None):
         """加载配置文件"""
         if config_path is None:
-            # 查找配置文件
-            skill_dir = Path(__file__).parent
-            config_path = skill_dir / "config.json"
+            # 查找配置文件 - 先在脚本目录，然后在 skill 根目录
+            script_dir = Path(__file__).parent
+            skill_root = script_dir.parent
+
+            # 优先使用 skill 根目录的配置
+            config_path = skill_root / "config.json"
             if not config_path.exists():
-                config_path = skill_dir / "config.template.json"
+                config_path = skill_root / "config.template.json"
+
+            # 如果 skill 根目录没有，回退到脚本目录
+            if not config_path.exists():
+                config_path = script_dir / "config.json"
+            if not config_path.exists():
+                config_path = script_dir / "config.template.json"
 
         with open(config_path, 'r', encoding='utf-8') as f:
             return json.load(f)

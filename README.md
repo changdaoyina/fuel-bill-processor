@@ -1,16 +1,20 @@
-# Fuel Bill Processor Skill
+# Fuel Bill Processor - Claude Code Skill
 
 <div align="center">
 
 ![Python Version](https://img.shields.io/badge/python-3.7+-blue.svg)
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
-![Status](https://img.shields.io/badge/status-stable-brightgreen.svg)
+![Claude Code](https://img.shields.io/badge/Claude%20Code-Skill-purple.svg)
 
-An intelligent aviation fuel surcharge bill processing tool, specifically designed to handle bill files with potential format variations.
+An intelligent aviation fuel surcharge bill processing **Claude Code Skill**, specifically designed to handle bill files with potential format variations.
 
 English | [简体中文](README_CN.md)
 
 </div>
+
+## What is a Claude Code Skill?
+
+This project is a [Claude Code Skill](https://code.claude.com/docs/en/skills) - a modular capability that extends Claude's functionality. Skills are **model-invoked**, meaning Claude automatically uses them when your request matches the skill's description.
 
 ## ✨ Features
 
@@ -27,32 +31,45 @@ English | [简体中文](README_CN.md)
 - ✅ Smart filtering of invalid data (empty rows, summary rows, etc.)
 - ✅ Generates output conforming to standard template
 
-## 🚀 Quick Start
+## 🚀 Installation
 
-### Install Dependencies
+### As a Claude Code Skill
 
-\`\`\`bash
-pip install pandas openpyxl xlrd requests
-\`\`\`
+1. **Clone this repository** to your project:
+   ```bash
+   git clone https://github.com/your-username/fuel-bill-processor.git
+   cd fuel-bill-processor
+   ```
 
-### Basic Usage
+2. **Install dependencies**:
+   ```bash
+   pip install pandas openpyxl xlrd requests
+   ```
 
-\`\`\`bash
-# Simplest usage
-python3 process.py input_file.xls
+3. **Create configuration file**:
+   ```bash
+   cd .claude/skills/fuel-bill-processor
+   cp config.template.json config.json
+   # Edit config.json with your API settings
+   ```
+
+4. **The skill is now available** - Claude will automatically discover and use it when processing fuel bills!
+
+### Standalone Usage
+
+You can also use the processor directly from command line:
+
+```bash
+# From the skill directory
+cd .claude/skills/fuel-bill-processor
+python3 scripts/process.py input_file.xls
 
 # Specify output file
-python3 process.py input_file.xls -o output_file.xlsx
+python3 scripts/process.py input_file.xls -o output_file.xlsx
 
 # Use custom configuration
-python3 process.py input_file.xls -c my_config.json
-\`\`\`
-
-### Example
-
-\`\`\`bash
-python3 process.py "bill_2025_october.xls" -o "october_result.xlsx"
-\`\`\`
+python3 scripts/process.py input_file.xls -c my_config.json
+```
 
 ## 📊 Output Format
 
@@ -72,32 +89,32 @@ Generated Excel file contains 9 standardized columns:
 
 ## ⚙️ Configuration
 
-Configuration file \`config.json\` contains:
+The `config.json` file (create from `config.template.json`) contains:
 
 ### API Configuration
-\`\`\`json
+```json
 {
   "api": {
     "url": "http://api.flymeta.online:64231/transportschedule/edge/flight/get",
     "timeout": 10
   }
 }
-\`\`\`
+```
 
 ### City Code Mapping
-\`\`\`json
+```json
 {
   "city_codes": {
     "郑州": "CGO",
     "布达佩斯": "BUD"
   }
 }
-\`\`\`
+```
 
 Simply add new mappings here to support new cities.
 
 ### Column Mappings
-\`\`\`json
+```json
 {
   "column_mappings": {
     "flight_date": ["航班日期", "日期", "飞行日期"],
@@ -106,9 +123,19 @@ Simply add new mappings here to support new cities.
     "fuel_price": ["燃油差价费（元）", "燃油差价费", "差价费"]
   }
 }
-\`\`\`
+```
 
 Each field supports multiple possible column names for automatic matching.
+
+## 🎯 Usage with Claude Code
+
+When working with fuel bill files, simply ask Claude:
+
+- "Can you process this fuel bill Excel file?"
+- "处理这个燃油账单"
+- "Extract data from this aviation fuel surcharge file"
+
+Claude will automatically invoke this skill and process your file!
 
 ## 🎯 Smart Features
 
@@ -120,9 +147,9 @@ Correctly identifies columns even with:
 - Minor text variations
 
 Examples:
-- \`航班日期\` ✅
-- \`航 班 日 期\` ✅ (with spaces)
-- \`飞行日期\` ✅ (configured alias)
+- `航班日期` ✅
+- `航 班 日 期` ✅ (with spaces)
+- `飞行日期` ✅ (configured alias)
 
 ### 2. Auto Header Detection
 
@@ -138,13 +165,15 @@ Automatically filters:
 ### 4. Multiple Date Format Support
 
 Auto-recognizes and converts:
-- \`25-10-02\` → \`2025-10-02\`
-- \`2025-10-02\` → \`2025-10-02\`
-- \`2025/10/02\` → \`2025-10-02\`
+- `25-10-02` → `2025-10-02`
+- `2025-10-02` → `2025-10-02`
+- `2025/10/02` → `2025-10-02`
 
 ## 💻 Use in Code
 
-\`\`\`python
+```python
+import sys
+sys.path.insert(0, '.claude/skills/fuel-bill-processor/scripts')
 from process import FuelBillProcessor
 
 # Create processor
@@ -156,14 +185,14 @@ result = processor.process('input.xls', 'output.xlsx')
 # Use custom config
 processor = FuelBillProcessor(config_path='my_config.json')
 result = processor.process('input.xls', 'output.xlsx')
-\`\`\`
+```
 
 ## 🐛 Troubleshooting
 
 ### Column Recognition Failed
 
 If you see "Failed to recognize all required columns", check:
-1. Whether \`column_mappings\` in config contains actual column name variants
+1. Whether `column_mappings` in config contains actual column name variants
 2. Whether Excel file header is correct
 
 ### API Call Failed
@@ -175,17 +204,22 @@ Check:
 
 ## 📦 File Structure
 
-\`\`\`
+```
 fuel-bill-processor/
-├── process.py              # Main processing script
-├── config.json             # User configuration
-├── config.template.json    # Config template
-├── skill.json              # Skill metadata
-├── README.md              # English documentation
-├── README_CN.md           # Chinese documentation
-├── LICENSE                # License file
-└── .gitignore            # Git ignore file
-\`\`\`
+├── .claude/
+│   └── skills/
+│       └── fuel-bill-processor/
+│           ├── SKILL.md              # Skill definition (required)
+│           ├── REFERENCE.md          # API reference
+│           ├── config.template.json  # Configuration template
+│           └── scripts/
+│               └── process.py        # Main processing script
+├── skill.json                        # Project metadata
+├── README.md                         # English documentation
+├── README_CN.md                      # Chinese documentation
+├── LICENSE                           # MIT License
+└── .gitignore                        # Git ignore file
+```
 
 ## 📄 License
 
@@ -208,4 +242,4 @@ Thanks to all contributors and users for their support!
 
 ---
 
-**Note**: This tool is designed for processing aviation fuel surcharge bills. Please ensure API address and city code mappings are correctly configured before use.
+**Note**: This skill is designed for processing aviation fuel surcharge bills. Please ensure API address and city code mappings are correctly configured before use.

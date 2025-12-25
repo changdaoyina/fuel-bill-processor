@@ -144,3 +144,6 @@ temp/
 test_*.xlsx
 测试*.xlsx
 *_处理结果.xlsx
+
+# User configuration
+config.json

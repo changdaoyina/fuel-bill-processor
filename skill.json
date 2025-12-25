@@ -1,8 +1,0 @@
-{
-  "name": "fuel-bill-processor",
-  "version": "1.0.0",
-  "description": "智能处理航空燃油差价费账单，支持多种格式自动识别和数据转换",
-  "main": "process.py",
-  "author": "AI Assistant",
-  "keywords": ["excel", "bill", "fuel", "aviation", "data-processing"]
-}
