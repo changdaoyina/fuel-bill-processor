@@ -283,7 +283,7 @@ class FuelBillProcessor:
             flight_date = self.convert_date(row[self.column_map['flight_date']])
             airline = self.extract_airline(row[self.column_map['flight_no']])
             origin, destination = self.parse_route(row[self.column_map['route']])
-            fuel_price = row[self.column_map['fuel_price']]
+            fuel_price = round(row[self.column_map['fuel_price']], 2)
 
             # 获取合同号
             contract_no = None
