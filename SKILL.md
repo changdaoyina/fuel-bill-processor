@@ -59,36 +59,43 @@ python3 scripts/process.py input_file.xls \
 
 When a user asks to process fuel bill files:
 
-### Step 1: Analyze Excel Structure
-```python
-# Read the Excel file to understand its structure
-# Look for: header row position, column names, data format
-```
+### Step 1: Try Automatic Mode First (Recommended)
 
-### Step 2: Determine Processing Mode
+**IMPORTANT**: In most cases, automatic mode works well. Always try it first!
 
-**Use Automatic Mode if:**
-- Standard table format (header within first 15 rows)
-- Common column names match config patterns
-- Simple structure without merged cells
-
-**Use Claude-Assisted Mode if:**
-- Header row beyond row 15
-- Non-standard column names
-- Complex table structure (merged cells, multi-level headers)
-- Previous automatic attempts failed
-
-### Step 3: Execute Processing
-
-**For Automatic Mode:**
 ```bash
 python3 scripts/process.py input_file.xls
 ```
 
-**For Claude-Assisted Mode:**
+The automatic processor can:
+- Detect header rows within the first 15 rows
+- Fuzzy match common column names (航班日期, 航段, 航班号, 燃油差价费)
+- Handle standard Excel formats (.xls, .xlsx)
+
+### Step 2: Use Claude-Assisted Mode ONLY if Automatic Mode Fails
+
+**Only use Claude-Assisted Mode if:**
+- Automatic mode fails or produces incorrect results
+- Header row is beyond row 15
+- Column names are highly non-standard
+- Complex table structure (merged cells, multi-level headers)
+
+### Step 3: Execute Claude-Assisted Mode (If Needed)
+
+**First, analyze the Excel structure:**
+```python
+# Read first 30 rows to identify structure
+import pandas as pd
+df = pd.read_excel('input_file.xls', header=None, nrows=30)
+# Identify: header row index and column positions
+```
+
+**Then, create runtime config with EXACT format:**
+
+⚠️ **IMPORTANT**: Only include these fields - no extra fields!
+
 ```bash
-# Create runtime config based on your analysis
-cat > /tmp/runtime.json <<EOF
+cat > /tmp/runtime.json <<'EOF'
 {
   "header_row": 2,
   "columns": {
@@ -103,6 +110,16 @@ EOF
 # Run with runtime config
 python3 scripts/process.py input_file.xls --runtime-config /tmp/runtime.json
 ```
+
+**Runtime Configuration Format:**
+- `header_row`: 0-based row index (e.g., if header is in row 3, use 2)
+- `columns`: Column mapping with Excel column letters (A, B, C...) or column names
+  - `flight_date`: Flight date column
+  - `route`: Route/segment column
+  - `flight_no`: Flight number column
+  - `fuel_price`: Fuel surcharge amount column
+
+**DO NOT include**: route_format, origin_col, destination_col, or any other fields
 
 ### Step 4: Handle Issues
 - If column recognition fails: Adjust column mappings in runtime config
@@ -160,7 +177,17 @@ The processor generates an Excel file with standardized columns:
 
 **Claude's Workflow:**
 
-1. **Analyze the Excel file:**
+1. **Try automatic mode first (ALWAYS):**
+   ```bash
+   python3 scripts/process.py /path/to/bill.xls
+   ```
+
+2. **If automatic mode succeeds:**
+   - Verify the output file was created
+   - Report success to user
+   - **DONE** - no need for Claude-assisted mode!
+
+3. **Only if automatic mode fails, analyze the file:**
    ```python
    # Read first 30 rows to identify structure
    import pandas as pd
@@ -169,11 +196,7 @@ The processor generates an Excel file with standardized columns:
    # Columns: B=日期, C=航段, D=航班号, E=燃油费
    ```
 
-2. **Decide on mode:**
-   - Header at row 3 → within automatic detection range
-   - But column names might be unusual → use Claude-assisted mode for accuracy
-
-3. **Create runtime config:**
+4. **Create runtime config (only if needed):**
    ```bash
    cat > /tmp/bill_config.json <<'EOF'
    {
@@ -188,12 +211,12 @@ The processor generates an Excel file with standardized columns:
    EOF
    ```
 
-4. **Execute processing:**
+5. **Execute with runtime config:**
    ```bash
    python3 scripts/process.py /path/to/bill.xls --runtime-config /tmp/bill_config.json
    ```
 
-5. **Verify results and report to user**
+6. **Verify results and report to user**
 
 ## Troubleshooting
 
