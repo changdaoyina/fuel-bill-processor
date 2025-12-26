@@ -1,16 +1,23 @@
 ---
 name: fuel-bill-processor
-description: Process aviation fuel surcharge bills from Excel files. Automatically detects headers, matches columns, parses dates/routes, and fetches contract numbers via API. Use when working with aviation fuel bills, Excel file processing, or when user mentions fuel surcharges,航空燃油账单, or 燃油差价费.
+description: Process aviation fuel surcharge bills from Excel files. Supports both automatic detection and Claude-assisted modes. Detects headers, matches columns, parses dates/routes, and fetches contract numbers via API. Use when working with aviation fuel bills, Excel file processing, or when user mentions fuel surcharges,航空燃油账单, or 燃油差价费.
 ---
 
-# Fuel Bill Processor
+# Fuel Bill Processor v2.0
 
-An intelligent tool for processing aviation fuel surcharge bills from Excel files. Supports automatic format detection, data transformation, and API integration.
+An intelligent tool for processing aviation fuel surcharge bills from Excel files. Supports automatic format detection, **Claude-assisted mode**, data transformation, and API integration.
+
+## 🆕 What's New in v2.0
+
+- **Claude-Assisted Mode**: Claude can analyze Excel structure and provide precise parameters
+- **Flexible Processing**: Accepts runtime configuration for complex Excel formats
+- **Modular Architecture**: Separated into extraction, API calls, and data assembly steps
 
 ## Quick Start
 
+### Mode 1: Automatic Detection (Default)
 ```bash
-# Process a file with default settings
+# Process a file with automatic header/column detection
 python3 scripts/process.py input_file.xls
 
 # Specify output file
@@ -18,6 +25,25 @@ python3 scripts/process.py input_file.xls -o output.xlsx
 
 # Use custom configuration
 python3 scripts/process.py input_file.xls -c config.json
+```
+
+### Mode 2: Claude-Assisted (Recommended for Complex Files)
+When Claude processes a fuel bill, it can:
+1. Read and analyze the Excel file structure
+2. Identify the exact header row and column positions
+3. Pass this information to the processor for accurate extraction
+
+```bash
+# Claude provides runtime configuration
+python3 scripts/process.py input_file.xls --runtime-config /tmp/runtime.json
+
+# Or Claude specifies parameters directly
+python3 scripts/process.py input_file.xls \
+  --header-row 2 \
+  --date-column B \
+  --route-column C \
+  --flight-column D \
+  --price-column E
 ```
 
 ## Features
@@ -29,27 +55,59 @@ python3 scripts/process.py input_file.xls -c config.json
 - **API Integration**: Fetches contract numbers from flight API
 - **Data Validation**: Filters empty rows, summary rows, and invalid data
 
-## Instructions
+## Instructions for Claude
 
-When processing fuel bill files:
+When a user asks to process fuel bill files:
 
-1. **Verify dependencies are installed**:
-   ```bash
-   pip install pandas openpyxl xlrd requests
-   ```
+### Step 1: Analyze Excel Structure
+```python
+# Read the Excel file to understand its structure
+# Look for: header row position, column names, data format
+```
 
-2. **Create configuration file** from the template:
-   ```bash
-   cp config.template.json config.json
-   # Edit config.json with your API settings
-   ```
+### Step 2: Determine Processing Mode
 
-3. **Run the processor** with appropriate input file
+**Use Automatic Mode if:**
+- Standard table format (header within first 15 rows)
+- Common column names match config patterns
+- Simple structure without merged cells
 
-4. **Handle common issues**:
-   - If column recognition fails: Add column name variants to `column_mappings` in config
-   - If API calls fail: Check network connectivity and API URL
-   - If date parsing fails: Add date format to `date_formats` in config
+**Use Claude-Assisted Mode if:**
+- Header row beyond row 15
+- Non-standard column names
+- Complex table structure (merged cells, multi-level headers)
+- Previous automatic attempts failed
+
+### Step 3: Execute Processing
+
+**For Automatic Mode:**
+```bash
+python3 scripts/process.py input_file.xls
+```
+
+**For Claude-Assisted Mode:**
+```bash
+# Create runtime config based on your analysis
+cat > /tmp/runtime.json <<EOF
+{
+  "header_row": 2,
+  "columns": {
+    "flight_date": "B",
+    "route": "C",
+    "flight_no": "D",
+    "fuel_price": "E"
+  }
+}
+EOF
+
+# Run with runtime config
+python3 scripts/process.py input_file.xls --runtime-config /tmp/runtime.json
+```
+
+### Step 4: Handle Issues
+- If column recognition fails: Adjust column mappings in runtime config
+- If API calls fail: Check network connectivity and API URL
+- If date parsing fails: The script handles multiple formats automatically
 
 ## Configuration File Structure
 
@@ -96,19 +154,46 @@ The processor generates an Excel file with standardized columns:
 | *结算对象名称 | Settlement entity | 龙浩 |
 | *单价 | Fuel surcharge amount | -113892.67 |
 
-## Example Usage
+## Example Workflow for Claude
 
-```python
-import sys
-sys.path.insert(0, '.claude/skills/fuel-bill-processor/scripts')
-from process import FuelBillProcessor
+**User Request:** "Please process this fuel bill: /path/to/bill.xls"
 
-# Create processor instance
-processor = FuelBillProcessor()
+**Claude's Workflow:**
 
-# Process file
-result = processor.process('bill_2025.xls', 'output.xlsx')
-```
+1. **Analyze the Excel file:**
+   ```python
+   # Read first 30 rows to identify structure
+   import pandas as pd
+   df = pd.read_excel('/path/to/bill.xls', header=None, nrows=30)
+   # Identify: Header at row 3 (index 2)
+   # Columns: B=日期, C=航段, D=航班号, E=燃油费
+   ```
+
+2. **Decide on mode:**
+   - Header at row 3 → within automatic detection range
+   - But column names might be unusual → use Claude-assisted mode for accuracy
+
+3. **Create runtime config:**
+   ```bash
+   cat > /tmp/bill_config.json <<'EOF'
+   {
+     "header_row": 2,
+     "columns": {
+       "flight_date": "B",
+       "route": "C",
+       "flight_no": "D",
+       "fuel_price": "E"
+     }
+   }
+   EOF
+   ```
+
+4. **Execute processing:**
+   ```bash
+   python3 scripts/process.py /path/to/bill.xls --runtime-config /tmp/bill_config.json
+   ```
+
+5. **Verify results and report to user**
 
 ## Troubleshooting
 
