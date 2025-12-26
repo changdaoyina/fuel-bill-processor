@@ -153,17 +153,26 @@ class FlexibleBillProcessor:
         mappings = self.config['column_mappings']
         identified = {}
 
-        for col in df.columns:
-            col_str = str(col)
+        # 定义要识别的字段及优先级
+        fields_to_identify = ['flight_date', 'route', 'flight_no', 'fuel_price', 'origin', 'destination']
 
-            if self._fuzzy_match_column(col_str, mappings['flight_date']):
-                identified['flight_date'] = col
-            elif self._fuzzy_match_column(col_str, mappings['route']):
-                identified['route'] = col
-            elif self._fuzzy_match_column(col_str, mappings['flight_no']):
-                identified['flight_no'] = col
-            elif self._fuzzy_match_column(col_str, mappings['fuel_price']):
-                identified['fuel_price'] = col
+        for field in fields_to_identify:
+            # 如果字段不在配置中，跳过
+            if field not in mappings and field not in ['origin', 'destination']:
+                continue
+            if field in ['origin', 'destination'] and field not in mappings:
+                continue
+
+            candidates = mappings.get(field, [])
+
+            # 优先匹配更精确的列名（包含完整关键词）
+            for col in df.columns:
+                col_str = str(col)
+                if self._fuzzy_match_column(col_str, candidates):
+                    # 如果已经为其他字段识别过此列，跳过
+                    if col not in identified.values():
+                        identified[field] = col
+                        break
 
         return identified
 
@@ -186,8 +195,36 @@ class FlexibleBillProcessor:
         airline = ''.join([c for c in flight_no if c.isalpha()])
         return airline.upper() if airline else None
 
-    def parse_route(self, route):
-        """解析航段"""
+    def parse_route(self, route, origin=None, destination=None):
+        """解析航段
+
+        支持两种格式：
+        1. 合并格式：route="郑州-布达佩斯"
+        2. 分离格式：origin="郑州", destination="布达佩斯"
+
+        Args:
+            route: 航段字符串（如"郑州-布达佩斯"）
+            origin: 始发站（如"郑州"或"CGO"）
+            destination: 目的站（如"布达佩斯"或"BUD"）
+
+        Returns:
+            tuple: (始发港代码, 目的港代码) 或 (None, None)
+        """
+        # 优先使用分离格式
+        if origin is not None and destination is not None:
+            origin_val = str(origin).strip() if pd.notna(origin) else None
+            dest_val = str(destination).strip() if pd.notna(destination) else None
+
+            if origin_val and dest_val:
+                # 如果已经是代码（3-4个字母），直接使用
+                # 否则从城市名映射
+                city_codes = self.config.get('city_codes', {})
+                origin_code = origin_val if origin_val.isupper() and len(origin_val) >= 3 else city_codes.get(origin_val, origin_val)
+                dest_code = dest_val if dest_val.isupper() and len(dest_val) >= 3 else city_codes.get(dest_val, dest_val)
+
+                return origin_code, dest_code
+
+        # 回退到合并格式
         if pd.isna(route):
             return None, None
 
@@ -207,6 +244,47 @@ class FlexibleBillProcessor:
                     return origin_code, dest_code
 
         return None, None
+
+    def should_filter_route(self, airline, origin, destination):
+        """检查是否应该过滤掉此航段
+
+        Args:
+            airline: 航司代码
+            origin: 始发港代码
+            destination: 目的港代码
+
+        Returns:
+            bool: True表示应该过滤掉（不保留），False表示保留
+        """
+        # 优先使用主要机场配置（方案1）
+        major_airports = self.config.get('major_airports_by_airline', {}).get(airline)
+        if major_airports:
+            # 只保留两端都是主要机场的航段，中转站自动过滤
+            is_major_route = origin in major_airports and destination in major_airports
+            return not is_major_route  # True = 过滤掉，False = 保留
+
+        # 回退到原有的 route_filters 逻辑（向后兼容）
+        route_filters = self.config.get('route_filters', {})
+        if airline not in route_filters:
+            return False  # 没有过滤规则，保留所有航段
+
+        allowed_routes = route_filters[airline]
+        route_str = f"{origin}-{destination}"
+
+        # 如果在允许列表中，则保留
+        return route_str not in allowed_routes
+
+    def get_settlement_name(self, airline):
+        """根据航司代码获取结算对象名称
+
+        Args:
+            airline: 航司代码
+
+        Returns:
+            str: 结算对象名称
+        """
+        settlement_map = self.config.get('settlement_names_by_airline', {})
+        return settlement_map.get(airline, settlement_map.get('默认', self.config['output_fields']['settlement_name']))
 
     def convert_date(self, date_val):
         """转换日期格式"""
@@ -272,7 +350,7 @@ class FlexibleBillProcessor:
         df = df[df[date_col].notna()].copy()
         df = df[~df[date_col].astype(str).str.contains('合计|注：|注释|说明', na=False)]
 
-        for key in ['route', 'flight_no', 'fuel_price']:
+        for key in ['route', 'flight_no', 'fuel_price', 'origin', 'destination']:
             if key in self.column_map:
                 col = self.column_map[key]
                 df = df[df[col].notna()]
@@ -315,8 +393,20 @@ class FlexibleBillProcessor:
             # 提取数据
             flight_date = self.convert_date(row[self.column_map['flight_date']])
             airline = self.extract_airline(row[self.column_map['flight_no']])
-            origin, destination = self.parse_route(row[self.column_map['route']])
+
+            # 解析航段 - 支持分离格式和合并格式
+            origin_val = row.get(self.column_map.get('origin')) if 'origin' in self.column_map else None
+            dest_val = row.get(self.column_map.get('destination')) if 'destination' in self.column_map else None
+            route_val = row.get(self.column_map.get('route')) if 'route' in self.column_map else None
+
+            origin, destination = self.parse_route(route_val, origin_val, dest_val)
             fuel_price = round(row[self.column_map['fuel_price']], 2)
+
+            # 航段过滤
+            if airline and origin and destination:
+                if self.should_filter_route(airline, origin, destination):
+                    print(f" ⊘ 航段过滤: {origin}-{destination}")
+                    continue
 
             # 获取合同号
             contract_no = None
@@ -326,6 +416,9 @@ class FlexibleBillProcessor:
                     print(f" ✓ {contract_no}")
                 else:
                     print(" ✗ API返回空")
+
+            # 获取动态结算对象名称（根据航司代码）
+            settlement_name = self.get_settlement_name(airline) if airline else self.config['output_fields']['settlement_name']
 
             # 构建输出行
             output_fields = self.config['output_fields']
@@ -337,7 +430,7 @@ class FlexibleBillProcessor:
                 '*目的港': destination,
                 '航班日期': flight_date,
                 '*费用名称': output_fields['fee_name'],
-                '*结算对象名称': output_fields['settlement_name'],
+                '*结算对象名称': settlement_name,
                 '*单价': fuel_price
             }
 

@@ -5,19 +5,32 @@
   },
   "city_codes": {
     "郑州": "CGO",
-    "布达佩斯": "BUD"
+    "布达佩斯": "BUD",
+    "杭州": "HGH"
   },
   "column_mappings": {
     "flight_date": ["航班日期", "日期", "飞行日期"],
     "route": ["航段", "航线", "路线"],
     "flight_no": ["航班号", "航班", "班次号"],
-    "fuel_price": ["燃油差价费（元）", "燃油差价费", "差价费", "燃油费"]
+    "fuel_price": ["燃油差价费（元）", "燃油差价费", "差价费", "燃油费", "燃油附加费（元）", "燃油附加费"],
+    "origin": ["起飞站", "始发站", "始发港", "出发站"],
+    "destination": ["到达站", "目的站", "目的港", "到达港"]
   },
   "output_fields": {
     "business_type": "航班",
     "fee_name": "燃油附加费",
     "settlement_name": "龙浩"
   },
+  "settlement_names_by_airline": {
+    "GI": "龙浩",
+    "YG": "杭州圆通",
+    "默认": "龙浩"
+  },
+  "major_airports_by_airline": {
+    "YG": ["HGH", "BUD"],
+    "GI": ["CGO", "BUD"]
+  },
+  "route_filters": {},
   "date_formats": [
     "%y-%m-%d",
     "%Y-%m-%d",
