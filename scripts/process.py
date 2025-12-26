@@ -22,20 +22,20 @@ def load_config(config_path=None):
         dict: 配置字典
     """
     if config_path is None:
-        # 查找配置文件 - 先在脚本目录，然后在 skill 根目录
+        # 查找配置文件
         script_dir = Path(__file__).parent
         skill_root = script_dir.parent
 
-        # 优先使用 skill 根目录的配置
-        config_path = skill_root / "config.json"
-        if not config_path.exists():
-            config_path = skill_root / "config.template.json"
+        # 优先使用 assets 目录的配置
+        config_path = skill_root / "assets" / "config.json"
 
-        # 如果 skill 根目录没有，回退到脚本目录
+        # 兼容旧位置：skill 根目录
+        if not config_path.exists():
+            config_path = skill_root / "config.json"
+
+        # 兼容旧位置：脚本目录
         if not config_path.exists():
             config_path = script_dir / "config.json"
-        if not config_path.exists():
-            config_path = script_dir / "config.template.json"
 
     with open(config_path, 'r', encoding='utf-8') as f:
         return json.load(f)

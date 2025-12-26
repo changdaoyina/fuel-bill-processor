@@ -2,6 +2,15 @@
 
 Detailed reference for the `FuelBillProcessor` class.
 
+## Table of Contents
+
+- [Class: FuelBillProcessor](#class-fuelbillprocessor)
+  - [Constructor](#constructor)
+  - [Methods](#methods)
+- [Configuration Schema](#configuration-schema)
+- [Error Handling](#error-handling)
+- [Exit Codes](#exit-codes)
+
 ## Class: FuelBillProcessor
 
 ### Constructor
